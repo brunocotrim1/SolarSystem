@@ -1,0 +1,850 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" href="style.css">
+    <script src="./twgl.js-master/dist/4.x/twgl-full.js"></script>
+
+</head>
+
+<body>
+    <doctype html="">
+        <title>Projeto</title>
+        <div id="keySettings">
+            <h1>Controls</h1>
+            <ul>
+                <li>FullScrenn Mode - M</li>
+                <br>
+                <li>Move around canvas - WASD</li>
+                <br>
+                <li>Phong Shading - F</li>
+                <br>
+                <li>Gouraud Shading - G</li>
+                <br>
+                <li>Enable/Disable Orbits - 'O'</li>
+                <br>
+                <li>Reset to Sun position - 2</li>
+                <br>
+                <li>Reset to Earth position - 1</li>
+                <br>
+                <li>Camera Zoom - Scroll Up/Down</li>
+                <br>
+                <li>Camera Speed- Arrow Up/Down</li>
+            </ul>
+        </div>
+        <canvas id="canvas" width="1900" height="910" display="block"></canvas>
+        <script id="phongVert" type="notjs">
+            uniform mat4 u_modelView;
+            uniform mat4 u_vpMatrix;
+            uniform mat4 u_ncMatrix;
+            uniform mat4 u_worldInverseTranspose;
+            uniform int u_ShaderSetting;
+            attribute vec4 position;
+            attribute vec2 texcoord;
+            attribute vec3 normal;
+            varying vec2 v_textcoord;
+            varying vec3 v_normal;
+            varying vec3 v_surfaceToLight;
+            varying vec3 v_surfaceToView;
+
+
+            void main() {
+              vec3 u_lightWorldPos = vec3(0, 0, 0);
+              v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
+              v_surfaceToLight = u_lightWorldPos - (u_modelView * position).xyz;
+              v_surfaceToView = (u_ncMatrix[3] - (u_modelView * position)).xyz;
+              gl_Position = u_vpMatrix * u_modelView * position;
+              v_textcoord = texcoord;
+            }
+
+      </script>
+        <script id="phongFrag" type="notjs">
+
+            precision mediump float;
+            varying vec2 v_textcoord;
+            varying vec3 v_normal;
+            varying vec3 v_surfaceToLight;
+            varying vec3 v_surfaceToView;
+            uniform sampler2D u_texture;
+            uniform int u_ShaderSetting;
+            vec4 u_lightColor = vec4(1, 1, 1, 1);
+            vec4 u_ambient = vec4(0.05, 0.05,0.05, 1);
+            vec4 u_specular = vec4(1, 1, 1, 1);
+            float u_shininess = 128.0;
+            float u_specularFactor = 1.0;
+
+            vec4 lit(float l ,float h, float m) {
+                return vec4(1.0,
+                            max(l, 0.0),
+                            (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
+                            1.0);
+              }
+            void main() {
+                if(u_ShaderSetting == 1){
+                vec4 diffuseColor = texture2D(u_texture,v_textcoord);
+                vec3 a_normal = normalize(v_normal);
+                vec3 surfaceToLight = normalize(v_surfaceToLight);
+                vec3 surfaceToView = normalize(v_surfaceToView);
+                vec3 halfVector = normalize(surfaceToLight + surfaceToView);
+                vec4 litR = lit(dot(a_normal, surfaceToLight),
+                                  dot(a_normal, halfVector), u_shininess);
+                vec4 outColor = vec4((
+                u_lightColor * (diffuseColor * litR.y + diffuseColor * u_ambient +
+                              u_specular * litR.z * u_specularFactor)).rgb,
+                    diffuseColor.a);
+                gl_FragColor = outColor;
+                }
+                else
+                gl_FragColor = texture2D(u_texture,v_textcoord);
+            }
+
+      </script>
+
+
+        <script id="gouraudVertex" type="notjs">
+
+        uniform mat4 u_modelView;
+        uniform mat4 u_vpMatrix;
+        uniform mat4 u_ncMatrix;
+        uniform mat4 u_worldInverseTranspose;
+        uniform int u_ShaderSetting;
+        attribute vec4 position;
+        attribute vec2 texcoord;
+        varying vec2 v_textcoord;
+        uniform sampler2D u_texture;
+        attribute vec3 normal;
+
+        vec3 v_normal;
+        vec3 v_surfaceToLight;
+        vec3 v_surfaceToView;
+        varying vec4 color;  
+        vec4 u_lightColor = vec4(1, 1, 1, 1);
+        vec4 u_ambient = vec4(0.05, 0.05, 0.05, 1);
+        vec4 u_specular = vec4(1, 1, 1, 1);
+        float u_shininess = 128.0;
+        float u_specularFactor = 1.0;
+
+         vec4 lit(float l ,float h, float m) {
+                return vec4(1.0,
+                            max(l, 0.0),
+                            (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
+                            1.0);
+              }
+
+        void main() {
+            v_textcoord = texcoord;
+            vec3 u_lightWorldPos = vec3(0, 0, 0);
+            v_normal = (u_worldInverseTranspose * vec4(normal, 0)).xyz;
+            v_surfaceToLight = u_lightWorldPos - (u_modelView * position).xyz;
+            v_surfaceToView = (u_ncMatrix[3] - (u_modelView * position)).xyz;
+                vec4 diffuseColor = texture2D(u_texture,v_textcoord);
+                vec3 a_normal = normalize(v_normal);
+                vec3 surfaceToLight = normalize(v_surfaceToLight);
+                vec3 surfaceToView = normalize(v_surfaceToView);
+                vec3 halfVector = normalize(surfaceToLight + surfaceToView);
+                vec4 litR = lit(dot(a_normal, surfaceToLight),
+                                  dot(a_normal, halfVector), u_shininess);
+                vec4 outColor = vec4((
+                u_lightColor * (diffuseColor * litR.y + diffuseColor * u_ambient +
+                              u_specular * litR.z * u_specularFactor)).rgb,
+                    diffuseColor.a);
+                color = outColor;
+
+            
+            gl_Position = u_vpMatrix * u_modelView  * position;
+        }
+
+  </script>
+        <script id="gouraudFrag" type="notjs">
+
+        precision mediump float;
+        varying vec2 v_textcoord;
+        uniform sampler2D u_texture;
+        uniform int u_ShaderSetting;
+        varying vec4 color;    
+        void main() {
+            if(u_ShaderSetting == 1)
+            gl_FragColor = color; 
+            else
+            gl_FragColor = texture2D(u_texture,v_textcoord);
+            
+        }
+
+  </script>
+
+        <script>
+            init()
+            const v3 = twgl.v3
+            const m4 = twgl.m4;
+            const gl = document.querySelector("canvas").getContext("webgl");
+            const phongProg = twgl.createProgramInfo(gl, ["phongVert", "phongFrag"]);
+            const gouraudProg = twgl.createProgramInfo(gl, ["gouraudVertex", "gouraudFrag"]);
+            var orbitOn = 1;
+
+            function init() {
+                canvas = document.getElementById("canvas");
+                canvas.width = document.body.clientWidth; //document.width is obsolete
+                canvas.height = document.body.clientHeight; //document.height is obsolete
+                canvasW = canvas.width;
+                canvasH = canvas.height;
+            }
+
+            var programInfo = phongProg;
+
+            //Camera
+            var cameraPos = v3.create(0, 4, 100)
+            var cameraFront = v3.create(0, 0, -1)
+            var cameraUp = v3.create(0, 1, 0)
+            var yaw = -90.0;
+            var pitch = 0;
+            let fov = 40
+            var cameraSpeed = 0.1;
+            var firstMouse = true
+            var lastX = gl.canvas.clientWidth / 2
+            var lastY = gl.canvas.clientHeight / 2
+
+            var elem = document.getElementById("canvas");
+            function openFullscreen() {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                }
+            }
+            const keys = {};
+
+            window.addEventListener('keydown', (e) => {
+                keys[e.keyCode] = true;
+                if (e.keyCode == 70) //F
+                    programInfo = phongProg;
+                else if (e.keyCode == 71) //G
+                    programInfo = gouraudProg;
+                else if (e.keyCode == 79) //O
+                    if (orbitOn == 1)
+                        orbitOn = 0
+                    else
+                        orbitOn = 1
+                else if (e.keyCode == 77) { //M
+                    openFullscreen()
+                    document.getElementById('canvas').style.cursor = 'none';
+                }
+                else if (e.keyCode == 38) { //Seta para cima
+                    cameraSpeed += 0.05
+                    cameraSpeed.toFixed(1)
+                }
+                else if (e.keyCode == 40) { //Seta para baixo
+                    if (cameraSpeed >= 0.1)
+                        cameraSpeed -= 0.05
+                    cameraSpeed.toFixed(1)
+                }
+                e.preventDefault();
+            });
+            window.addEventListener('keyup', (e) => {
+                keys[e.keyCode] = false;
+                e.preventDefault();
+            });
+
+            function processKeys(deltaTime, camera) {
+                if (keys['68']) {//D
+                    cameraPos = v3.add(cameraPos, v3.mulScalar(v3.normalize(v3.cross(cameraFront, cameraUp)), cameraSpeed))
+                }
+
+                if (keys['65']) {//A
+                    cameraPos = v3.subtract(cameraPos, v3.mulScalar(v3.normalize(v3.cross(cameraFront, cameraUp)), cameraSpeed))
+                }
+
+                if (keys['83']) {//S
+                    cameraPos = v3.subtract(cameraPos, v3.mulScalar(cameraFront, cameraSpeed));
+                }
+
+                if (keys['87']) {//W
+                    cameraPos = v3.add(cameraPos, v3.mulScalar(cameraFront, cameraSpeed));
+                }
+            }
+
+            function earthAndSunKeys(deltaTime, camera, earthPos, sunPos) {
+                if (keys['49']) {//1
+                    cameraPos = earthPos
+                    cameraFront = v3.create(0, -5, 0.1)
+                    lastX = 0;
+                    lastY = 0;
+                }
+
+                if (keys['50']) {//2
+                    cameraPos = sunPos
+                    cameraFront = v3.create(0, -5, -0.1)
+                    lastX = 0;
+                    lastY = 0;
+                }
+
+            }
+
+            canvas.addEventListener('mousemove', function (evt) {
+                var mousePos = getMousePos(canvas, evt);
+                x = mousePos.x
+                y = mousePos.y
+                if (firstMouse) {
+                    lastX = x;
+                    lastY = y;
+                    firstMouse = false;
+                }
+                var xoffset = x - lastX;
+                var yoffset = lastY - y;
+                lastX = x;
+                lastY = y;
+                var sensitivity = 0.2;
+                xoffset *= sensitivity;
+                yoffset *= sensitivity;
+                yaw += xoffset;
+                pitch += yoffset;
+                if (pitch > 89.0)
+                    pitch = 89.0;
+                if (pitch < -89.0)
+                    pitch = -89.0;
+
+                var direction = v3.create()
+                direction[0] = Math.cos(degToRad(yaw)) * Math.cos(degToRad(pitch))
+                direction[1] = Math.sin(degToRad(pitch))
+                direction[2] = Math.sin(degToRad(yaw)) * Math.cos(degToRad(pitch));
+                cameraFront = v3.normalize(direction)
+            }, false);
+
+
+            function getMousePos(canvas, evt) {
+                var rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+
+            document.querySelector("canvas").addEventListener('wheel', checkScrollDirection, false);
+
+            function checkScrollDirection(event) {
+                if (checkScrollDirectionIsUp(event)) {
+                    if (fov > 1 && fov <= 45) {
+                        fov -= 1
+                    }
+                } else {
+                    if (fov >= 1 && fov < 45) {
+                        fov += 1
+                    }
+                }
+            }
+
+            function checkScrollDirectionIsUp(event) {
+                if (event.wheelDelta) {
+                    return event.wheelDelta > 0;
+                }
+                return event.deltaY < 0;
+            }
+
+
+            function degToRad(degrees) {
+                return degrees * Math.PI / 180;
+            }
+
+            function randomNumber(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+            function RandomPointInRing(minRadius, maxRadius) {
+                theta = randomNumber(0.0, 2.0 * Math.PI);
+                w = randomNumber(0.0, 1.0);
+                r = Math.sqrt((1.0 - w) * minRadius * minRadius + w * maxRadius * maxRadius);
+                x = r * Math.cos(theta)
+                y = r * Math.sin(theta)
+                return [x, randomNumber(-1, 1), y];
+            }
+
+
+
+
+            const bufferInfoComet = twgl.primitives.createSphereBufferInfo(gl, 0.1, 60, 60)
+            var comet_texture = twgl.createTexture(gl, { src: './textures/comet_texture.jpg' })
+            const uniformsComet = {};
+            const bufferInfoCometOrbit = twgl.primitives.createDiscBufferInfo(gl, 10.8, 200, 0, 10.79)
+            const uniformsCometOrbit = {}
+            const bufferInfoCometTrail = twgl.primitives.createTruncatedConeBufferInfo(gl, 0.005, 0.05, 0.5, 100, 100)
+            const uniformsCometTrail = {}
+
+            var sun_texture = twgl.createTexture(gl, { src: './textures/sun_texture.jpg' })
+            const bufferInfoSun = twgl.primitives.createSphereBufferInfo(gl, 1.5, 100, 100)
+            const uniformsSun = {};
+
+            var mercury_texture = twgl.createTexture(gl, { src: './textures/mercury_texture.jpg' })
+            const bufferInfoMercury = twgl.primitives.createSphereBufferInfo(gl, 0.04, 60, 60)
+            const uniformsMercury = {};
+            var orbit_texture = twgl.createTexture(gl, { src: './textures/orbit_texture.jpg' })
+            const bufferInfoMercuryOrbit = twgl.primitives.createDiscBufferInfo(gl, 5.8, 200, 0, 5.79)
+            const uniformsMercuryOrbit = {}
+
+            var venus_texture = twgl.createTexture(gl, { src: './textures/venus_texture.jpg' })
+            const bufferInfoVenus = twgl.primitives.createSphereBufferInfo(gl, 0.1, 60, 60)
+            const uniformsVenus = {};
+            const bufferInfoVenusOrbit = twgl.primitives.createDiscBufferInfo(gl, 10.8, 200, 0, 10.79)
+            const uniformsVenusOrbit = {}
+
+            var earth_texture = twgl.createTexture(gl, { src: './textures/earth_texture.jpg' })
+            const bufferInfoEarth = twgl.primitives.createSphereBufferInfo(gl, 0.11, 60, 60)
+            const uniformsEarth = {};
+            const bufferInfoEarthOrbit = twgl.primitives.createDiscBufferInfo(gl, 15, 200, 0, 14.99)
+            const uniformsEarthOrbit = {}
+
+            var moon_texture = twgl.createTexture(gl, { src: './textures/moon_texture.jpg' })
+            const bufferInfoMoon = twgl.primitives.createSphereBufferInfo(gl, 0.025, 60, 60)
+            const uniformsMoon = {};
+            const bufferInfoMoonOrbit = twgl.primitives.createDiscBufferInfo(gl, -0.5, 200, 0, -0.495)
+            const uniformsMoonOrbit = {}
+
+            var mars_texture = twgl.createTexture(gl, { src: './textures/mars_texture.png' })
+            const bufferInfoMars = twgl.primitives.createSphereBufferInfo(gl, 0.06, 60, 60)
+            const uniformsMars = {};
+            const bufferInfoMarsOrbit = twgl.primitives.createDiscBufferInfo(gl, 21, 200, 0, 20.99)
+            const uniformsMarsOrbit = {}
+
+            var jupiter_texture = twgl.createTexture(gl, { src: './textures/jupiter_texture.jpg' })
+            const bufferInfoJupiter = twgl.primitives.createSphereBufferInfo(gl, 0.5, 60, 60)//0.5
+            const uniformsJupiter = {};
+            const bufferInfoJupiterOrbit = twgl.primitives.createDiscBufferInfo(gl, 38.7, 200, 0, 38.69)
+            const uniformsJupiterOrbit = {}
+
+            var saturn_texture = twgl.createTexture(gl, { src: './textures/saturn_texture.jpg' })
+            var saturn_ring_texture = twgl.createTexture(gl, { src: './textures/saturn_ring_texture.jpg' })
+            const bufferInfoSaturn = twgl.primitives.createSphereBufferInfo(gl, 0.35, 60, 60)
+            const uniformsSaturn = {};
+            const bufferInfoSaturnOrbit = twgl.primitives.createDiscBufferInfo(gl, 60.0, 300, 0, 59.99)
+            const uniformsSaturnOrbit = {}
+            const bufferInfoSaturnRing = twgl.primitives.createDiscBufferInfo(gl, -0.8, 200, 0, -0.5)
+            const uniformsSaturnRing = {}
+
+            var Uranus_texture = twgl.createTexture(gl, { src: './textures/uranus_texture.jpg' })
+            var uranus_ring_texture = twgl.createTexture(gl, { src: './textures/uranus_ring_texture.jpg' })
+            const bufferInfoUranus = twgl.primitives.createSphereBufferInfo(gl, 0.2, 60, 60)
+            const uniformsUranus = {};
+            const bufferInfoUranusOrbit = twgl.primitives.createDiscBufferInfo(gl, 80, 400, 0, 79.99)
+            const uniformsUranusOrbit = {}
+            const bufferInfoUranusRing = twgl.primitives.createDiscBufferInfo(gl, -0.4, 200, 0, -0.35)
+            const uniformsUranusRing = {}
+
+            var neptune_texture = twgl.createTexture(gl, { src: './textures/neptune_texture.png' })
+            const bufferInfoNeptune = twgl.primitives.createSphereBufferInfo(gl, 0.2, 60, 60)
+            const uniformsNeptune = {};
+            const bufferInfoNeptuneOrbit = twgl.primitives.createDiscBufferInfo(gl, 100, 500, 0, 99.99)
+            const uniformsNeptuneOrbit = {}
+
+            var skybox_texture = twgl.createTexture(gl, { src: './textures/background.png' })
+            const bufferInfoSkybox = twgl.primitives.createSphereBufferInfo(gl, 1500, 60, 60)
+            const uniformsSkybox = {};
+
+            var listOfAsteroids = [];
+            var asteroid_texture = twgl.createTexture(gl, { src: './textures/asteroid_texture.jpg' })
+            for (let i = 0; i < 2000; i++) {
+                var size = 0.02 * Math.random() + 0.005;
+                var distance = RandomPointInRing(24, 34);
+                const bufferInfoAsteroid = twgl.primitives.createSphereBufferInfo(gl, size, 20, 20)
+                const uniformsAsteroid = {};
+                uniformsAsteroid.u_texture = asteroid_texture;
+                const bufferInfoAsteroidOrbit = twgl.primitives.createDiscBufferInfo(gl, distance, 200, 0, (distance - 0.01))
+                const uniformsAsteroidOrbit = {}
+                listOfAsteroids.push(distance)
+                listOfAsteroids.push(bufferInfoAsteroid)
+                uniformsAsteroid.randomtime = Math.random()
+                uniformsAsteroid.size = size
+                listOfAsteroids.push(uniformsAsteroid)
+            }
+
+
+
+
+            function angleCalculator(deltaTime, angularVelocity) {
+                return deltaTime * angularVelocity;
+            }
+
+            const mercuryVelocity = (2 * Math.PI) / (88 * 24 * 60 * 60)
+            const earthVelocity = (2 * Math.PI) / (365 * 24 * 60 * 60)
+            const marsVelocity = (2 * Math.PI) / (687 * 24 * 60 * 60)
+            const saturnVelocity = (2 * Math.PI) / (29 * 365 * 24 * 60 * 60)
+            const jupiterVelocity = (2 * Math.PI) / (12 * 365 * 24 * 60 * 60)
+            const venusrVelocity = (2 * Math.PI) / (225 * 24 * 60 * 60)
+            const moonVelocity = (2 * Math.PI) / (27.3 * 24 * 60 * 60)
+            const uranusVelocity = (2 * Math.PI) / (84 * 365 * 24 * 60 * 60)
+            const neptuneVelocity = (2 * Math.PI) / (165 * 365 * 24 * 60 * 60)
+
+            var test = 1
+
+            function render(time) {
+
+                gl.useProgram(programInfo.program);
+                const timeC = time / 10000;
+                const deltaTime = time / 1000 * 60 * 60 * 24; //Tempo em dias
+                twgl.resizeCanvasToDisplaySize(gl.canvas);
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                gl.enable(gl.DEPTH_TEST);
+                gl.disable(gl.CULL_FACE);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+                const zNear = 0.01;
+                const zFar = 10000;
+                const projection = m4.perspective(degToRad(fov), aspect, zNear, zFar);
+                var camera = m4.identity();
+                camera = m4.lookAt(cameraPos, v3.add(cameraPos, cameraFront), cameraUp);
+                const view = m4.inverse(camera);
+                const viewProjection = m4.multiply(projection, view);
+
+                var comet = m4.identity();
+                comet = m4.translate(comet, [30 * Math.cos(timeC), 0, 8 * Math.sin(timeC)]);
+                uniformsComet.u_world = comet;
+                uniformsComet.u_modelView = comet;
+                uniformsComet.u_vpMatrix = viewProjection;
+                uniformsComet.u_texture = comet_texture
+                uniformsComet.u_ncMatrix = camera
+                uniformsComet.u_worldInverseTranspose = m4.transpose(m4.inverse(comet));
+                uniformsComet.u_ShaderSetting = 0
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoComet);
+                twgl.setUniforms(programInfo, uniformsComet);
+                twgl.drawBufferInfo(gl, bufferInfoComet);
+
+                var cometTrail = m4.identity();
+                cometTrail = m4.translate(cometTrail, [30.3 * Math.cos(timeC), 0, 8.18 * Math.sin(timeC)]);
+                cometTrail = m4.rotateX(cometTrail, degToRad(90));
+                cometTrail = m4.translate(cometTrail, [-30.3 * Math.cos(timeC), 0, -8.18 * Math.sin(timeC)]);
+                cometTrail = m4.translate(cometTrail, [30.3 * Math.cos(timeC), 0, 8.18 * Math.sin(timeC)]);
+
+                type1 = -90 * (Math.cos(timeC) + 1) - 90
+                type2 = 90 * (Math.cos(timeC) + 1) - 90
+
+                if (test == 1)
+                    type = type1
+                else
+                    type = type2
+
+                if (type >= -90.1 && type <= 89.9) {
+                    type = type2
+                    test = 2
+                    cometTrail = m4.rotateZ(cometTrail, degToRad(type))
+                } else {
+                    type = type1
+                    test = 1
+                    cometTrail = m4.rotateZ(cometTrail, degToRad(type))
+                }
+
+                uniformsCometTrail.u_world = cometTrail;
+                uniformsCometTrail.u_modelView = cometTrail;
+                uniformsCometTrail.u_vpMatrix = viewProjection;
+                uniformsCometTrail.u_ncMatrix = camera
+                uniformsCometTrail.u_worldInverseTranspose = m4.transpose(m4.inverse(cometTrail));
+                uniformsCometTrail.u_ShaderSetting = 0
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoCometTrail);
+                twgl.setUniforms(programInfo, uniformsCometTrail);
+                twgl.drawBufferInfo(gl, bufferInfoCometTrail);
+
+                var sun = m4.rotationY(angleCalculator(deltaTime, (2 * Math.PI) / (27 * 24 * 60 * 60)));
+                var sunPosition = v3.create(sun[12], 10, sun[14])
+                uniformsSun.u_world = sun;
+                uniformsSun.u_texture = sun_texture;
+                uniformsSun.u_modelView = sun;
+                uniformsSun.u_vpMatrix = viewProjection;
+                uniformsSun.u_ncMatrix = camera
+                uniformsSun.u_worldInverseTranspose = m4.transpose(m4.inverse(sun));
+                uniformsSun.u_ShaderSetting = 0
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoSun);
+                twgl.setUniforms(programInfo, uniformsSun);
+                twgl.drawBufferInfo(gl, bufferInfoSun);
+
+                var mercury = m4.rotationY(angleCalculator(deltaTime, mercuryVelocity))
+                mercury = m4.translate(mercury, [0, 0, 5.8])
+                mercury = m4.rotateY(mercury, angleCalculator(deltaTime, (2 * Math.PI) / (58.6 * 24 * 60 * 60)))
+                uniformsMercury.u_world = mercury;
+                uniformsMercury.u_modelView = mercury;
+                uniformsMercury.u_vpMatrix = viewProjection;
+                uniformsMercury.u_texture = mercury_texture;
+                uniformsMercury.u_ncMatrix = camera
+                uniformsMercury.u_worldInverseTranspose = m4.transpose(m4.inverse(mercury));
+                uniformsMercury.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoMercury);
+                twgl.setUniforms(programInfo, uniformsMercury);
+                twgl.drawBufferInfo(gl, bufferInfoMercury);
+
+                var skybox = m4.identity()
+                uniformsSkybox.u_modelView = skybox;
+                uniformsSkybox.u_vpMatrix = viewProjection;
+                uniformsSkybox.u_texture = skybox_texture;
+                uniformsSkybox.u_ncMatrix = camera
+                uniformsSkybox.u_worldInverseTranspose = m4.transpose(m4.inverse(skybox));
+                uniformsSkybox.u_ShaderSetting = 0
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoSkybox);
+                twgl.setUniforms(programInfo, uniformsSkybox);
+                twgl.drawBufferInfo(gl, bufferInfoSkybox);
+
+                var venus = m4.rotationY(angleCalculator(deltaTime, venusrVelocity))
+                venus = m4.translate(venus, [10.8, 0, 0])
+                venus = m4.rotateY(venus,angleCalculator(deltaTime, (2 * Math.PI) / (224.7 * 24 * 60 * 60)))
+                uniformsVenus.u_modelView = venus;
+                uniformsVenus.u_vpMatrix = viewProjection;
+                uniformsVenus.u_texture = venus_texture;
+                uniformsVenus.u_ncMatrix = camera
+                uniformsVenus.u_worldInverseTranspose = m4.transpose(m4.inverse(venus));
+                uniformsVenus.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoVenus);
+                twgl.setUniforms(programInfo, uniformsVenus);
+                twgl.drawBufferInfo(gl, bufferInfoVenus);
+
+                var earth = m4.rotationY(angleCalculator(deltaTime, earthVelocity))
+                earth = m4.translate(earth, [-15, 0, 0])
+                earth = m4.rotateY(earth, angleCalculator(deltaTime, (2 * Math.PI) / (0.99 * 24 * 60 * 60)))//-(10 * time / 5000)
+                var earthPosition = v3.create(earth[12], 5, earth[14])
+                uniformsEarth.u_modelView = earth;
+                uniformsEarth.u_vpMatrix = viewProjection;
+                uniformsEarth.u_texture = earth_texture;
+                uniformsEarth.u_ncMatrix = camera
+                uniformsEarth.u_worldInverseTranspose = m4.transpose(m4.inverse(earth));
+                uniformsEarth.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoEarth);
+                twgl.setUniforms(programInfo, uniformsEarth);
+                twgl.drawBufferInfo(gl, bufferInfoEarth);
+
+                var moon = m4.rotationY(angleCalculator(deltaTime, earthVelocity))
+                moon = m4.translate(moon, [-15, 0, 0])
+                moon = m4.rotateX(moon, degToRad(35))
+                moon = m4.rotateY(moon, angleCalculator(deltaTime, moonVelocity))
+                moon = m4.translate(moon, [15, 0, 0])
+                moon = m4.translate(moon, [-15.5, 0, 0])
+                moon = m4.rotateY(moon, -angleCalculator(deltaTime, (2 * Math.PI) / (29.530 * 24 * 60 * 60)))
+                uniformsMoon.u_modelView = moon;
+                uniformsMoon.u_vpMatrix = viewProjection;
+                uniformsMoon.u_texture = moon_texture;
+                uniformsMoon.u_ncMatrix = camera
+                uniformsMoon.u_worldInverseTranspose = m4.transpose(m4.inverse(moon));
+                uniformsMoon.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoMoon);
+                twgl.setUniforms(programInfo, uniformsMoon);
+                twgl.drawBufferInfo(gl, bufferInfoMoon);
+
+                var mars = m4.rotationY(angleCalculator(deltaTime, marsVelocity))
+                mars = m4.translate(mars, [0, 0, -21])
+                mars = m4.rotateY(mars, angleCalculator(deltaTime, (2 * Math.PI) / (1.03 * 24 * 60 * 60)))
+                uniformsMars.u_modelView = mars;
+                uniformsMars.u_vpMatrix = viewProjection;
+                uniformsMars.u_texture = mars_texture;
+                uniformsMars.u_ncMatrix = camera
+                uniformsMars.u_worldInverseTranspose = m4.transpose(m4.inverse(mars));
+                uniformsMars.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoMars);
+                twgl.setUniforms(programInfo, uniformsMars);
+                twgl.drawBufferInfo(gl, bufferInfoMars);
+
+                for (let i = 0; i < 6000; i++) {
+                    var speed = time / 100000 * listOfAsteroids[i + 2].randomtime / listOfAsteroids[i + 2].size
+                    var asteroid = m4.rotationY(speed)
+                    asteroid = m4.translate(asteroid, listOfAsteroids[i])
+                    asteroid = m4.rotateY(asteroid, -(speed))
+                    listOfAsteroids[i + 2].u_modelView = asteroid;
+                    listOfAsteroids[i + 2].u_vpMatrix = viewProjection;
+                    listOfAsteroids[i + 2].u_ncMatrix = camera
+                    listOfAsteroids[i + 2].u_worldInverseTranspose = m4.transpose(m4.inverse(asteroid));
+                    listOfAsteroids[i + 2].u_ShaderSetting = 1
+                    twgl.setBuffersAndAttributes(gl, programInfo, listOfAsteroids[i + 1]);
+                    twgl.setUniforms(programInfo, listOfAsteroids[i + 2]);
+                    twgl.drawBufferInfo(gl, listOfAsteroids[i + 1]);
+                    i = i + 2;
+                }
+
+                var jupiter = m4.rotationY(angleCalculator(deltaTime, jupiterVelocity))
+                jupiter = m4.translate(jupiter, [38.7, 0, 0])
+                jupiter = m4.rotateY(jupiter, angleCalculator(deltaTime, (2 * Math.PI) / (0.41 * 24 * 60 * 60)))
+                uniformsJupiter.u_modelView = jupiter;
+                uniformsJupiter.u_vpMatrix = viewProjection;
+                uniformsJupiter.u_texture = jupiter_texture;
+                uniformsJupiter.u_ncMatrix = camera
+                uniformsJupiter.u_worldInverseTranspose = m4.transpose(m4.inverse(jupiter));
+                uniformsJupiter.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoJupiter);
+                twgl.setUniforms(programInfo, uniformsJupiter);
+                twgl.drawBufferInfo(gl, bufferInfoJupiter);
+
+                var saturn = m4.rotationY(angleCalculator(deltaTime, saturnVelocity))
+                saturn = m4.translate(saturn, [60, 0, 0])
+                saturn = m4.rotateY(saturn,  angleCalculator(deltaTime, (2 * Math.PI) / (0.45 * 24 * 60 * 60)))
+                uniformsSaturn.u_modelView = saturn;
+                uniformsSaturn.u_vpMatrix = viewProjection;
+                uniformsSaturn.u_texture = saturn_texture;
+                uniformsSaturn.u_ncMatrix = camera
+                uniformsSaturn.u_worldInverseTranspose = m4.transpose(m4.inverse(saturn));
+                uniformsSaturn.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoSaturn);
+                twgl.setUniforms(programInfo, uniformsSaturn);
+                twgl.drawBufferInfo(gl, bufferInfoSaturn);
+
+                var saturnRing = m4.rotationY(angleCalculator(deltaTime, saturnVelocity));
+                saturnRing = m4.translate(saturnRing, [60, 0, 0]);
+                saturnRing = m4.rotateX(saturnRing, degToRad(20));
+                saturnRing = m4.rotateY(saturnRing, 10 * time / 10000);
+                uniformsSaturnRing.u_modelView = saturnRing;
+                uniformsSaturnRing.u_vpMatrix = viewProjection;
+                uniformsSaturnRing.u_texture = saturn_ring_texture;
+                uniformsSaturnRing.u_ncMatrix = cameraPos
+                uniformsSaturnRing.u_worldInverseTranspose = m4.transpose(m4.inverse(saturnRing));
+                uniformsSaturnRing.u_ShaderSetting = 0
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoSaturnRing);
+                twgl.setUniforms(programInfo, uniformsSaturnRing);
+                twgl.drawBufferInfo(gl, bufferInfoSaturnRing);
+
+                var uranus = m4.rotationY(angleCalculator(deltaTime, uranusVelocity))
+                uranus = m4.translate(uranus, [0, 0, 80])
+                uranus = m4.rotateY(uranus, -angleCalculator(deltaTime, (2 * Math.PI) / (0.72 * 24 * 60 * 60)))
+                uniformsUranus.u_modelView = uranus;
+                uniformsUranus.u_vpMatrix = viewProjection;
+                uniformsUranus.u_texture = Uranus_texture;
+                uniformsUranus.u_ncMatrix = camera
+                uniformsUranus.u_worldInverseTranspose = m4.transpose(m4.inverse(uranus));
+                uniformsUranus.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoUranus);
+                twgl.setUniforms(programInfo, uniformsUranus);
+                twgl.drawBufferInfo(gl, bufferInfoUranus);
+
+                var uranusRing = m4.rotationY(angleCalculator(deltaTime, uranusVelocity));
+                uranusRing = m4.translate(uranusRing, [0, 0, 80]);
+                uranusRing = m4.rotateZ(uranusRing, degToRad(60));
+                uranusRing = m4.rotateY(uranusRing, 10 * time / 10000);
+                uniformsUranusRing.u_modelView = uranusRing;
+                uniformsUranusRing.u_vpMatrix = viewProjection;
+                uniformsUranusRing.u_texture = uranus_ring_texture;
+                uniformsUranusRing.u_ncMatrix = cameraPos
+                uniformsUranusRing.u_worldInverseTranspose = m4.transpose(m4.inverse(uranusRing));
+                uniformsUranusRing.u_ShaderSetting = 0
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoUranusRing);
+                twgl.setUniforms(programInfo, uniformsUranusRing);
+                twgl.drawBufferInfo(gl, bufferInfoUranusRing);
+
+                var neptune = m4.rotationY(angleCalculator(deltaTime, neptuneVelocity))
+                neptune = m4.translate(neptune, [-100, 0, 0])
+                neptune = m4.rotateY(neptune, -angleCalculator(deltaTime, (2 * Math.PI) / (0.67 * 24 * 60 * 60)))
+                uniformsNeptune.u_modelView = neptune;
+                uniformsNeptune.u_vpMatrix = viewProjection;
+                uniformsNeptune.u_texture = neptune_texture;
+                uniformsNeptune.u_ncMatrix = camera
+                uniformsNeptune.u_worldInverseTranspose = m4.transpose(m4.inverse(neptune));
+                uniformsNeptune.u_ShaderSetting = 1
+                twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoNeptune);
+                twgl.setUniforms(programInfo, uniformsNeptune);
+                twgl.drawBufferInfo(gl, bufferInfoNeptune);
+
+                if (orbitOn == 1) {
+                    var mercuryOrbit = m4.identity()
+                    uniformsMercuryOrbit.u_modelView = mercuryOrbit;
+                    uniformsMercuryOrbit.u_vpMatrix = viewProjection;
+                    uniformsMercuryOrbit.u_texture = orbit_texture;
+                    uniformsMercuryOrbit.u_ncMatrix = camera
+                    uniformsMercuryOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(mercuryOrbit));
+                    uniformsMercuryOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoMercuryOrbit);
+                    twgl.setUniforms(programInfo, uniformsMercuryOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoMercuryOrbit);
+
+                    var venusOrbit = m4.identity()
+                    uniformsVenusOrbit.u_modelView = venusOrbit;
+                    uniformsVenusOrbit.u_vpMatrix = viewProjection;
+                    uniformsVenusOrbit.u_texture = orbit_texture;
+                    uniformsVenusOrbit.u_ncMatrix = camera
+                    uniformsVenusOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(venusOrbit));
+                    uniformsVenusOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoVenusOrbit);
+                    twgl.setUniforms(programInfo, uniformsVenusOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoVenusOrbit);
+
+                    var earthOrbit = m4.identity()
+                    uniformsEarthOrbit.u_modelView = earthOrbit;
+                    uniformsEarthOrbit.u_vpMatrix = viewProjection;
+                    uniformsEarthOrbit.u_texture = orbit_texture;
+                    uniformsEarthOrbit.u_ncMatrix = camera
+                    uniformsEarthOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(earthOrbit));
+                    uniformsEarthOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoEarthOrbit);
+                    twgl.setUniforms(programInfo, uniformsEarthOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoEarthOrbit);
+
+                    var moonOrbit = m4.rotationY(angleCalculator(deltaTime, earthVelocity));
+                    moonOrbit = m4.translate(moonOrbit, [-15, 0, 0]);
+                    moonOrbit = m4.rotateX(moonOrbit, degToRad(35));
+                    moonOrbit = m4.rotateY(moonOrbit, 10 * time / 10000);
+                    uniformsMoonOrbit.u_modelView = moonOrbit;
+                    uniformsMoonOrbit.u_vpMatrix = viewProjection;
+                    uniformsMoonOrbit.u_texture = orbit_texture;
+                    uniformsMoonOrbit.u_ncMatrix = cameraPos
+                    uniformsMoonOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(moonOrbit));
+                    uniformsMoonOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoMoonOrbit);
+                    twgl.setUniforms(programInfo, uniformsMoonOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoMoonOrbit);
+
+                    var marsOrbit = m4.identity()
+                    uniformsMarsOrbit.u_modelView = marsOrbit;
+                    uniformsMarsOrbit.u_vpMatrix = viewProjection;
+                    uniformsMarsOrbit.u_texture = orbit_texture;
+                    uniformsMarsOrbit.u_ncMatrix = camera
+                    uniformsMarsOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(marsOrbit));
+                    uniformsMarsOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoMarsOrbit);
+                    twgl.setUniforms(programInfo, uniformsMarsOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoMarsOrbit);
+
+                    var jupiterOrbit = m4.identity()
+                    uniformsJupiterOrbit.u_modelView = jupiterOrbit;
+                    uniformsJupiterOrbit.u_vpMatrix = viewProjection;
+                    uniformsJupiterOrbit.u_texture = orbit_texture;
+                    uniformsJupiterOrbit.u_ncMatrix = camera
+                    uniformsJupiterOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(jupiterOrbit));
+                    uniformsJupiterOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoJupiterOrbit);
+                    twgl.setUniforms(programInfo, uniformsJupiterOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoJupiterOrbit);
+
+                    var saturnOrbit = m4.identity();
+                    uniformsSaturnOrbit.u_modelView = saturnOrbit;
+                    uniformsSaturnOrbit.u_vpMatrix = viewProjection;
+                    uniformsSaturnOrbit.u_texture = orbit_texture;
+                    uniformsSaturnOrbit.u_ncMatrix = camera
+                    uniformsSaturnOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(saturnOrbit));
+                    uniformsSaturnOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoSaturnOrbit);
+                    twgl.setUniforms(programInfo, uniformsSaturnOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoSaturnOrbit);
+
+                    var uranusOrbit = m4.identity();
+                    uniformsUranusOrbit.u_modelView = uranusOrbit;
+                    uniformsUranusOrbit.u_vpMatrix = viewProjection;
+                    uniformsUranusOrbit.u_texture = orbit_texture;
+                    uniformsUranusOrbit.u_ncMatrix = camera
+                    uniformsUranusOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(uranusOrbit));
+                    uniformsUranusOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoUranusOrbit);
+                    twgl.setUniforms(programInfo, uniformsUranusOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoUranusOrbit);
+
+                    var neptuneOrbit = m4.identity();
+                    uniformsNeptuneOrbit.u_world = neptuneOrbit;
+                    uniformsNeptuneOrbit.u_modelView = neptuneOrbit;
+                    uniformsNeptuneOrbit.u_vpMatrix = viewProjection;
+                    uniformsNeptuneOrbit.u_texture = orbit_texture;
+                    uniformsNeptuneOrbit.u_ncMatrix = camera
+                    uniformsNeptuneOrbit.u_worldInverseTranspose = m4.transpose(m4.inverse(neptuneOrbit));
+                    uniformsNeptuneOrbit.u_ShaderSetting = 0
+                    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfoNeptuneOrbit);
+                    twgl.setUniforms(programInfo, uniformsNeptuneOrbit);
+                    twgl.drawBufferInfo(gl, bufferInfoNeptuneOrbit);
+                }
+                processKeys(deltaTime, camera)
+                earthAndSunKeys(deltaTime, camera, earthPosition, sunPosition)
+                requestAnimationFrame(render);
+            }
+            requestAnimationFrame(render);
+        </script>
+
+
+    </doctype>
+</body>
+
+</html>

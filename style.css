@@ -1,0 +1,22 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+#keySettings {
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    left: 0;
+    top: 0;
+    color: white;
+    border-style: solid;
+    border-color: white;
+    width: 200px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+h1 {
+    padding-top: 3;
+}
